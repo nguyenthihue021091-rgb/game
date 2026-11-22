@@ -79,6 +79,208 @@
     const GROUND_Y = 360;
     const MONSTER_BONUS_HP = 45;
 
+    // ==================== WEB AUDIO API SOUND ENGINE ====================
+    let audioCtx = null;
+
+    function ensureAudioContext() {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return null;
+        if (!audioCtx) {
+            audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === "suspended") {
+            audioCtx.resume().catch(() => {});
+        }
+        return audioCtx;
+    }
+
+    function createNoiseBuffer(ctxInstance, duration) {
+        const sampleRate = ctxInstance.sampleRate;
+        const length = Math.max(1, Math.floor(sampleRate * duration));
+        const buffer = ctxInstance.createBuffer(1, length, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+    }
+
+    function playSlashSound() {
+        console.log('đầu hàng chơi nhạc')
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+        const now = ctxInstance.currentTime;
+        const duration = 0.12;
+
+        const noise = ctxInstance.createBufferSource();
+        noise.buffer = createNoiseBuffer(ctxInstance, duration);
+
+        const filter = ctxInstance.createBiquadFilter();
+        filter.type = "bandpass";
+        filter.Q.setValueAtTime(2.6, now);
+        filter.frequency.setValueAtTime(1400, now);
+        filter.frequency.exponentialRampToValueAtTime(340, now + duration);
+
+        const gain = ctxInstance.createGain();
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.24, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctxInstance.destination);
+
+        noise.start(now);
+        noise.stop(now + duration);
+    }
+
+    function playGunSound(isArrow = false) {
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+        const now = ctxInstance.currentTime;
+
+        // Xung nổ ngắn
+        const duration = isArrow ? 0.09 : 0.11;
+        const noise = ctxInstance.createBufferSource();
+        noise.buffer = createNoiseBuffer(ctxInstance, duration);
+
+        const filter = ctxInstance.createBiquadFilter();
+        filter.type = isArrow ? "bandpass" : "highpass";
+        filter.frequency.setValueAtTime(isArrow ? 950 : 650, now);
+        filter.frequency.exponentialRampToValueAtTime(isArrow ? 320 : 190, now + duration);
+
+        const noiseGain = ctxInstance.createGain();
+        noiseGain.gain.setValueAtTime(isArrow ? 0.14 : 0.25, now);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        noise.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(ctxInstance.destination);
+        noise.start(now);
+        noise.stop(now + duration);
+
+        // Sóng trầm tạo lực
+        const osc = ctxInstance.createOscillator();
+        const oscGain = ctxInstance.createGain();
+        osc.type = isArrow ? "triangle" : "sawtooth";
+        osc.frequency.setValueAtTime(isArrow ? 260 : 190, now);
+        osc.frequency.exponentialRampToValueAtTime(52, now + 0.085);
+
+        oscGain.gain.setValueAtTime(isArrow ? 0.11 : 0.18, now);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+
+        osc.connect(oscGain);
+        oscGain.connect(ctxInstance.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+    }
+
+    function playDragonFireSound(isSpecial = false) {
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+        const now = ctxInstance.currentTime;
+        const duration = isSpecial ? 0.46 : 0.24;
+
+        const noise = ctxInstance.createBufferSource();
+        noise.buffer = createNoiseBuffer(ctxInstance, duration);
+
+        const filter = ctxInstance.createBiquadFilter();
+        filter.type = "bandpass";
+        filter.Q.setValueAtTime(isSpecial ? 1.5 : 2.0, now);
+        filter.frequency.setValueAtTime(isSpecial ? 520 : 680, now);
+        filter.frequency.exponentialRampToValueAtTime(160, now + duration);
+
+        const gain = ctxInstance.createGain();
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(isSpecial ? 0.34 : 0.22, now + 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctxInstance.destination);
+        noise.start(now);
+        noise.stop(now + duration);
+
+        const roar = ctxInstance.createOscillator();
+        const roarGain = ctxInstance.createGain();
+        roar.type = "sawtooth";
+        roar.frequency.setValueAtTime(isSpecial ? 135 : 110, now);
+        roar.frequency.exponentialRampToValueAtTime(42, now + duration);
+
+        roarGain.gain.setValueAtTime(isSpecial ? 0.2 : 0.11, now);
+        roarGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        roar.connect(roarGain);
+        roarGain.connect(ctxInstance.destination);
+        roar.start(now);
+        roar.stop(now + duration);
+    }
+
+    function playTntExplosionSound() {
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+        const now = ctxInstance.currentTime;
+        const duration = 0.52;
+
+        const noise = ctxInstance.createBufferSource();
+        noise.buffer = createNoiseBuffer(ctxInstance, duration);
+
+        const filter = ctxInstance.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(920, now);
+        filter.frequency.exponentialRampToValueAtTime(85, now + duration);
+
+        const gain = ctxInstance.createGain();
+        gain.gain.setValueAtTime(0.38, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctxInstance.destination);
+        noise.start(now);
+        noise.stop(now + duration);
+
+        const boom = ctxInstance.createOscillator();
+        const boomGain = ctxInstance.createGain();
+        boom.type = "sine";
+        boom.frequency.setValueAtTime(120, now);
+        boom.frequency.exponentialRampToValueAtTime(28, now + 0.42);
+
+        boomGain.gain.setValueAtTime(0.32, now);
+        boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.44);
+
+        boom.connect(boomGain);
+        boomGain.connect(ctxInstance.destination);
+        boom.start(now);
+        boom.stop(now + 0.45);
+    }
+
+    function playLevelUpSound() {
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+        const now = ctxInstance.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+
+        notes.forEach((freq, idx) => {
+            const start = now + idx * 0.075;
+            const osc = ctxInstance.createOscillator();
+            const gain = ctxInstance.createGain();
+
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(freq, start);
+
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.18, start + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+
+            osc.connect(gain);
+            gain.connect(ctxInstance.destination);
+            osc.start(start);
+            osc.stop(start + 0.19);
+        });
+    }
+    // =====================================================================
+
     // Hiệu ứng rung màn hình
     let screenShakeTime = 0;
     let screenShakeIntensity = 0;
@@ -435,6 +637,26 @@
     let p1XpNeed = 100;
     let bossSpawnedThisWave = false;
 
+    function awardZombieKill(target, playerRef) {
+        zombieKills++;
+        p1Xp += target.xpValue;
+        if (Math.random() < 0.35) {
+            itemDrops.push(new ItemDrop(target.x + target.width / 2, GROUND_Y - 10, Math.random() < 0.65 ? "heal" : "tnt"));
+        }
+        if (p1Xp >= p1XpNeed) {
+            p1Level++;
+            p1Xp -= p1XpNeed;
+            p1XpNeed = Math.round(p1XpNeed * 1.35);
+            playerRef.maxHp += 15;
+            playerRef.hp = playerRef.maxHp;
+            playerRef.meleeDamage += 3;
+            playerRef.rangedDamage += 2;
+            playLevelUpSound();
+            spawnFloatingText(playerRef.x + playerRef.width / 2, playerRef.y - 18, `LÊN CẤP ${p1Level}!`, "#00d2ff", 15);
+            spawnHitSparks(playerRef.x + playerRef.width / 2, playerRef.y + playerRef.height / 2, "#00d2ff", 30);
+        }
+    }
+
     class Afterimage {
         constructor({
                         centerX,
@@ -582,12 +804,16 @@
                     spawnHitSparks(this.x, this.y, "#ff4d6d", 16);
                     spawnFloatingText(this.x, this.y - 16, "+35 HP", "#ff758f", 14);
                 } else if (this.kind === "tnt") {
+                    playTntExplosionSound();
                     for (let z of zombies) {
                         if (Math.hypot(z.x - player.x, z.y - player.y) < 220) {
                             z.hp -= 65;
                             z.vx = (z.x > player.x ? 1 : -1) * 12;
                             z.vy = -6;
                             z.hitFlash = 8;
+                            if (z.hp <= 0) {
+                                awardZombieKill(z, player);
+                            }
                         }
                     }
                     spawnHitSparks(this.x, this.y, "#ff9f1c", 26);
@@ -1007,24 +1233,7 @@
                     }
 
                     if (target instanceof ZombieEntity && target.hp <= 0) {
-                        zombieKills++;
-                        p1Xp += target.xpValue;
-
-                        if (Math.random() < 0.35) {
-                            itemDrops.push(new ItemDrop(target.x + target.width / 2, GROUND_Y - 10, Math.random() < 0.65 ? "heal" : "tnt"));
-                        }
-
-                        if (p1Xp >= p1XpNeed) {
-                            p1Level++;
-                            p1Xp -= p1XpNeed;
-                            p1XpNeed = Math.round(p1XpNeed * 1.35);
-                            player1.maxHp += 15;
-                            player1.hp = player1.maxHp;
-                            player1.meleeDamage += 3;
-                            player1.rangedDamage += 2;
-                            spawnFloatingText(player1.x + player1.width / 2, player1.y - 18, `LÊN CẤP ${p1Level}!`, "#00d2ff", 15);
-                            spawnHitSparks(player1.x + player1.width / 2, player1.y + player1.height / 2, "#00d2ff", 30);
-                        }
+                        awardZombieKill(target, this.owner || player1);
                     }
 
                     if (this.type !== "thrown_spear") {
@@ -1185,6 +1394,7 @@
             this.isAttacking = true;
             this.attackFrame = 10;
             this.throwCooldown = this.scale > 1.2 ? 52 : 38;
+            playSlashSound();
 
             const throwDamage = Math.round(this.meleeDamage * 1.25);
             const spawnX = this.facing === 1 ? this.x + this.width + 18 * this.scale : this.x - 62 * this.scale;
@@ -1213,6 +1423,7 @@
             this.attackCooldown = 36;
             this.specialCooldown = 260;
             this.specialBreathTimer = 18;
+            playDragonFireSound(true);
 
             triggerScreenShake(12, 16);
             spawnFloatingText(this.x + this.width / 2, this.y - 16, "3 ĐẦU KHẠC LỬA ĐẶC BIỆT!", "#ffd166", 15);
@@ -1265,6 +1476,7 @@
                 this.meleeDamage = Math.round(this.baseMeleeDamage * 1.45);
                 this.rangedDamage = Math.round(this.baseRangedDamage * 1.4);
                 this.hitFlash = 8;
+                playDragonFireSound(false);
                 spawnFloatingText(this.x + this.width / 2, this.y - 16, "HÓA QUÁI!", "#ff4d6d", 15);
                 triggerScreenShake(9, 12);
             } else {
@@ -1285,6 +1497,7 @@
             this.isRanged = !this.isRanged;
             this.isAttacking = false;
             this.attackCooldown = 10;
+            playSlashSound();
             spawnHitSparks(this.x + this.width / 2, this.y + this.height * 0.45, this.color, 6);
         }
 
@@ -1297,6 +1510,7 @@
                 this.attackCooldown = 26;
 
                 if (this.isRanged) {
+                    playDragonFireSound(false);
                     const offsets = [-14, 0, 14];
                     for (let dy of offsets) {
                         const spawnX = this.facing === 1 ? this.x + this.width + 18 : this.x - 28;
@@ -1316,6 +1530,7 @@
                     spawnHitSparks(this.x + this.width / 2 + this.facing * 24, this.y + 34, "#ff9f1c", 10);
                     triggerScreenShake(4.5, 6);
                 } else {
+                    playSlashSound();
                     slashes.push(new SlashEffect(
                         this.x + this.width / 2 + this.facing * 20,
                         this.y + 42,
@@ -1333,6 +1548,7 @@
                 this.isAttacking = true;
                 this.attackFrame = this.scale > 1.2 ? 11 : 8;
                 this.attackCooldown = this.rangedCooldown;
+                playGunSound(this.projectileType === "arrow");
 
                 let spawnX = this.facing === 1 ? this.x + this.width + 22 * this.scale : this.x - 28 * this.scale;
                 let spawnY = this.y + 32 * this.scale;
@@ -1355,6 +1571,7 @@
                 this.isAttacking = true;
                 this.attackFrame = this.scale > 1.2 ? 16 : 12;
                 this.attackCooldown = this.meleeCooldown;
+                playSlashSound();
 
                 slashes.push(new SlashEffect(
                     this.x + this.width / 2 + this.facing * 18 * this.scale,
@@ -1467,21 +1684,7 @@
                             }
 
                             if (opponent instanceof ZombieEntity && opponent.hp <= 0) {
-                                zombieKills++;
-                                p1Xp += opponent.xpValue;
-                                if (Math.random() < 0.35) {
-                                    itemDrops.push(new ItemDrop(opponent.x + opponent.width / 2, GROUND_Y - 10, Math.random() < 0.65 ? "heal" : "tnt"));
-                                }
-                                if (p1Xp >= p1XpNeed) {
-                                    p1Level++;
-                                    p1Xp -= p1XpNeed;
-                                    p1XpNeed = Math.round(p1XpNeed * 1.35);
-                                    this.maxHp += 15;
-                                    this.hp = this.maxHp;
-                                    this.meleeDamage += 3;
-                                    this.rangedDamage += 2;
-                                    spawnFloatingText(this.x + this.width / 2, this.y - 18, `LÊN CẤP ${p1Level}!`, "#00d2ff", 15);
-                                }
+                                awardZombieKill(opponent, this);
                             }
                         }
                     }
@@ -1764,7 +1967,6 @@
             ctx.fill();
         }
 
-        // Mây mờ trôi nhẹ tạo chiều sâu
         ctx.save();
         ctx.fillStyle = arena.cloudColor;
         for (let c of CLOUDS) {
@@ -1777,7 +1979,6 @@
         }
         ctx.restore();
 
-        // Mặt trời / vầng sáng trung tâm
         ctx.save();
         ctx.fillStyle = arena.sunHalo;
         ctx.beginPath();
@@ -1792,7 +1993,6 @@
         ctx.fill();
         ctx.restore();
 
-        // Lớp núi xa
         ctx.fillStyle = arena.farMountain;
         ctx.beginPath();
         ctx.moveTo(-20, GROUND_Y);
@@ -1806,7 +2006,6 @@
         ctx.closePath();
         ctx.fill();
 
-        // Lớp núi tầm trung
         ctx.fillStyle = arena.midMountain;
         ctx.beginPath();
         ctx.moveTo(-20, GROUND_Y);
@@ -1820,7 +2019,6 @@
         ctx.closePath();
         ctx.fill();
 
-        // Lớp núi gần
         ctx.fillStyle = arena.mountainColor;
         ctx.beginPath();
         ctx.moveTo(-20, GROUND_Y);
@@ -1851,7 +2049,6 @@
             ctx.fill();
         }
 
-        // Cột trụ phế tích đấu trường
         const pillarPositions = [110, 450, 790];
         pillarPositions.forEach((px, i) => {
             const topY = 120 + (i % 2) * 35;
@@ -1863,7 +2060,6 @@
             ctx.strokeRect(px - 18, topY, 36, GROUND_Y - topY);
         });
 
-        // Mặt đất & lớp đá nền
         const groundGrad = ctx.createLinearGradient(0, GROUND_Y, 0, canvas.height);
         groundGrad.addColorStop(0, arena.groundTop);
         groundGrad.addColorStop(0.18, arena.groundMid);
@@ -1872,7 +2068,6 @@
         ctx.fillStyle = groundGrad;
         ctx.fillRect(-20, GROUND_Y, canvas.width + 40, canvas.height - GROUND_Y + 30);
 
-        // Đường vân đá & sỏi dưới đất
         ctx.strokeStyle = "rgba(255, 255, 255, 0.09)";
         ctx.lineWidth = 1.5;
         for (let gx = 40; gx < canvas.width; gx += 95) {
@@ -1888,7 +2083,6 @@
             ctx.fill();
         }
 
-        // Viền mặt sàn phát sáng
         ctx.save();
         ctx.fillStyle = arena.trimColor;
         ctx.shadowColor = arena.trimColor;
@@ -1936,7 +2130,6 @@
             }
         }
 
-        // Khăn choàng nhẹ phía sau cổ để tạo điểm nhấn
         ctx.save();
         ctx.fillStyle = accent;
         ctx.globalAlpha = 0.72;
@@ -2126,6 +2319,7 @@
     }
 
     function startMatch() {
+        ensureAudioContext();
         projectiles.length = 0;
         particles.length = 0;
         slashes.length = 0;
@@ -2191,6 +2385,7 @@
     }
 
     window.addEventListener("keydown", (e) => {
+        ensureAudioContext();
         if (!keys[e.code]) {
             if (gameState === "select") {
                 if (e.code === "KeyM" || e.code === "Tab") {
