@@ -63,7 +63,7 @@
     <div>
         <span class="p1-text">P1:</span>
         Di chuyển: <b>A/D/W</b> | Đánh: <b>Space</b> | Đổi VK: <b>E</b> | Quái: <b>Q</b> | Ném giáo: <b>Z</b> | Chế độ:
-        <b>M</b> | Sàn: <b>B</b> | Âm thanh: <b>N</b>
+        <b>M</b> | Sàn: <b>B</b> | Âm thanh/Nhạc: <b>N</b>
     </div>
     <div>
         <span class="p2-text">RỒNG 3 ĐẦU:</span> <b>Cào Rồng • Khạc 3 Lửa • Chiêu Đặc Biệt (Rung Màn Hình)</b> | <span
@@ -79,9 +79,11 @@
     const GROUND_Y = 360;
     const MONSTER_BONUS_HP = 45;
 
-    // ==================== WEB AUDIO API SOUND ENGINE ====================
+    // ==================== WEB AUDIO API SOUND & BGM ENGINE ====================
     let audioCtx = null;
     let soundMuted = false;
+    let bgmInterval = null;
+    let bgmStep = 0;
 
     function ensureAudioContext() {
         if (soundMuted) return null;
@@ -91,23 +93,91 @@
             audioCtx = new AudioContextClass();
         }
         if (audioCtx.state === "suspended") {
-            audioCtx.resume().catch(() => {
-            });
+            audioCtx.resume().catch(() => {});
         }
         return audioCtx;
     }
 
     function toggleSoundMute() {
         soundMuted = !soundMuted;
+        if (soundMuted) {
+            stopBGM();
+        } else {
+            if (gameState === "fight" || gameState === "zombie") {
+                startBGM();
+            }
+        }
         spawnFloatingText(
             canvas.width / 2,
             85,
-            soundMuted ? "ĐÃ TẮT ÂM THANH [N]" : "ĐÃ BẬT ÂM THANH [N]",
+            soundMuted ? "ĐÃ TẮT ÂM THANH & NHẠC [N]" : "ĐÃ BẬT ÂM THANH & NHẠC [N]",
             soundMuted ? "#ff6b6b" : "#74c69d",
             14
         );
     }
 
+    // --- BGM SYNTHESIZER ---
+    const BGM_BASS_LINE = [110, 110, 130, 110, 146.83, 130, 110, 98];
+    const BGM_MELODY_LINE = [220, 0, 261.63, 293.66, 0, 329.63, 293.66, 261.63, 220, 246.94, 261.63, 0, 196, 220, 0, 0];
+
+    function playBGMTick() {
+        if (soundMuted) return;
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+
+        const now = ctxInstance.currentTime;
+
+        // Bass Synth
+        const bassFreq = BGM_BASS_LINE[bgmStep % BGM_BASS_LINE.length];
+        if (bassFreq > 0) {
+            const osc = ctxInstance.createOscillator();
+            const gain = ctxInstance.createGain();
+            osc.type = "sawtooth";
+            osc.frequency.setValueAtTime(bassFreq, now);
+
+            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+            osc.connect(gain);
+            gain.connect(ctxInstance.destination);
+            osc.start(now);
+            osc.stop(now + 0.13);
+        }
+
+        // Melody Synth
+        const melFreq = BGM_MELODY_LINE[bgmStep % BGM_MELODY_LINE.length];
+        if (melFreq > 0) {
+            const osc = ctxInstance.createOscillator();
+            const gain = ctxInstance.createGain();
+            osc.type = "square";
+            osc.frequency.setValueAtTime(melFreq, now);
+
+            gain.gain.setValueAtTime(0.025, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+
+            osc.connect(gain);
+            gain.connect(ctxInstance.destination);
+            osc.start(now);
+            osc.stop(now + 0.11);
+        }
+
+        bgmStep++;
+    }
+
+    function startBGM() {
+        if (bgmInterval || soundMuted) return;
+        bgmStep = 0;
+        bgmInterval = setInterval(playBGMTick, 145);
+    }
+
+    function stopBGM() {
+        if (bgmInterval) {
+            clearInterval(bgmInterval);
+            bgmInterval = null;
+        }
+    }
+
+    // --- SOUND EFFECTS ---
     function createNoiseBuffer(ctxInstance, duration) {
         const sampleRate = ctxInstance.sampleRate;
         const length = Math.max(1, Math.floor(sampleRate * duration));
@@ -2491,6 +2561,7 @@
             p1Xp = 0;
             p1XpNeed = 100;
             gameState = "zombie";
+            startBGM();
             return;
         }
 
@@ -2508,9 +2579,11 @@
             isThreeHeadDragon: isBotDragon
         });
         gameState = "fight";
+        startBGM();
     }
 
     function backToSelect() {
+        stopBGM();
         p1Ready = false;
         p2Ready = false;
         clearTransientEntities();
@@ -2801,7 +2874,7 @@
         ctx.textAlign = "center";
         ctx.fillStyle = "#f8fafc";
         ctx.font = "12.5px Arial";
-        ctx.fillText(`[M] Đổi chế độ • [B] Đổi sàn • [N] Âm thanh (${soundMuted ? "Tắt" : "Bật"}) • Ném giáo [Z]/[Shift] • Hóa Quái [Q]/[L]`, canvas.width / 2, 405);
+        ctx.fillText(`[M] Đổi chế độ • [B] Đổi sàn • [N] Âm thanh & Nhạc (${soundMuted ? "Tắt" : "Bật"}) • Ném giáo [Z]/[Shift] • Hóa Quái [Q]/[L]`, canvas.width / 2, 405);
     }
 
     function drawFightUI() {
@@ -2966,6 +3039,7 @@
 
             if (player1.hp <= 0) {
                 gameState = "gameover";
+                stopBGM();
             }
         } else if (gameState === "fight") {
             drawArenaBackground();
@@ -2989,6 +3063,7 @@
 
             if (player1.hp <= 0 || player2.hp <= 0) {
                 gameState = "gameover";
+                stopBGM();
             }
         }
 
