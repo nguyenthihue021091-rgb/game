@@ -63,7 +63,7 @@
     <div>
         <span class="p1-text">P1:</span>
         Di chuyển: <b>A/D/W</b> | Đánh: <b>Space</b> | Đổi VK: <b>E</b> | Quái: <b>Q</b> | Ném giáo: <b>Z</b> | Chế độ:
-        <b>M</b> | Sàn: <b>B</b>
+        <b>M</b> | Sàn: <b>B</b> | Âm thanh: <b>N</b>
     </div>
     <div>
         <span class="p2-text">RỒNG 3 ĐẦU:</span> <b>Cào Rồng • Khạc 3 Lửa • Chiêu Đặc Biệt (Rung Màn Hình)</b> | <span
@@ -81,18 +81,30 @@
 
     // ==================== WEB AUDIO API SOUND ENGINE ====================
     let audioCtx = null;
+    let soundMuted = false;
 
     function ensureAudioContext() {
+        if (soundMuted) return null;
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         if (!AudioContextClass) return null;
         if (!audioCtx) {
             audioCtx = new AudioContextClass();
         }
         if (audioCtx.state === "suspended") {
-            audioCtx.resume().catch(() => {
-            });
+            audioCtx.resume().catch(() => {});
         }
         return audioCtx;
+    }
+
+    function toggleSoundMute() {
+        soundMuted = !soundMuted;
+        spawnFloatingText(
+            canvas.width / 2,
+            85,
+            soundMuted ? "ĐÃ TẮT ÂM THANH [N]" : "ĐÃ BẬT ÂM THANH [N]",
+            soundMuted ? "#ff6b6b" : "#74c69d",
+            14
+        );
     }
 
     function createNoiseBuffer(ctxInstance, duration) {
@@ -104,6 +116,96 @@
             data[i] = Math.random() * 2 - 1;
         }
         return buffer;
+    }
+
+    function playJumpSound() {
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+        const now = ctxInstance.currentTime;
+
+        const osc = ctxInstance.createOscillator();
+        const gain = ctxInstance.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(165, now);
+        osc.frequency.exponentialRampToValueAtTime(420, now + 0.11);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.14, now + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+
+        osc.connect(gain);
+        gain.connect(ctxInstance.destination);
+        osc.start(now);
+        osc.stop(now + 0.12);
+    }
+
+    function playHitSound(isHeavy = false) {
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+        const now = ctxInstance.currentTime;
+        const duration = isHeavy ? 0.16 : 0.09;
+
+        const osc = ctxInstance.createOscillator();
+        const gain = ctxInstance.createGain();
+        osc.type = isHeavy ? "sawtooth" : "triangle";
+        osc.frequency.setValueAtTime(isHeavy ? 145 : 210, now);
+        osc.frequency.exponentialRampToValueAtTime(42, now + duration);
+
+        gain.gain.setValueAtTime(isHeavy ? 0.22 : 0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(ctxInstance.destination);
+        osc.start(now);
+        osc.stop(now + duration + 0.01);
+    }
+
+    function playPickupSound(isHeal = true) {
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+        const now = ctxInstance.currentTime;
+        const notes = isHeal ? [587.33, 880] : [330, 440, 659.25];
+
+        notes.forEach((freq, idx) => {
+            const start = now + idx * 0.06;
+            const osc = ctxInstance.createOscillator();
+            const gain = ctxInstance.createGain();
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(freq, start);
+
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.14, start + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.14);
+
+            osc.connect(gain);
+            gain.connect(ctxInstance.destination);
+            osc.start(start);
+            osc.stop(start + 0.15);
+        });
+    }
+
+    function playWaveClearSound() {
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+        const now = ctxInstance.currentTime;
+        const notes = [440, 554.37, 659.25, 880];
+
+        notes.forEach((freq, idx) => {
+            const start = now + idx * 0.07;
+            const osc = ctxInstance.createOscillator();
+            const gain = ctxInstance.createGain();
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(freq, start);
+
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.15, start + 0.012);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.16);
+
+            osc.connect(gain);
+            gain.connect(ctxInstance.destination);
+            osc.start(start);
+            osc.stop(start + 0.17);
+        });
     }
 
     function playSlashSound() {
@@ -816,10 +918,12 @@
                 Math.abs(this.y - (player.y + player.height / 2)) < 44
             ) {
                 if (this.kind === "heal") {
+                    playPickupSound(true);
                     player.hp = Math.min(player.maxHp, player.hp + 35);
                     spawnHitSparks(this.x, this.y, "#ff4d6d", 16);
                     spawnFloatingText(this.x, this.y - 16, "+35 HP", "#ff758f", 14);
                 } else if (this.kind === "tnt") {
+                    playPickupSound(false);
                     playTntExplosionSound();
                     for (let i = zombies.length - 1; i >= 0; i--) {
                         const z = zombies[i];
@@ -947,6 +1051,9 @@
             this.y += this.vy;
             this.vx *= 0.78;
 
+            if (this.x < -80) this.x = -80;
+            if (this.x + this.width > canvas.width + 80) this.x = canvas.width + 80 - this.width;
+
             if (Math.abs(this.vx) > 0.3) {
                 this.walkCycle += 0.22;
             }
@@ -972,6 +1079,7 @@
                 target.vy = this.type === "boss" ? -6 : -3;
                 target.hitFlash = 6;
                 this.attackCooldown = this.type === "boss" ? 48 : 38;
+                playHitSound(this.type === "boss");
                 spawnHitSparks(target.x + target.width / 2, target.y + target.height / 2, "#38b000", 12);
             }
         }
@@ -1004,6 +1112,7 @@
     function spawnZombieWaveLogic() {
         if (zombieWave % 5 === 0 && lastBossWave !== zombieWave) {
             zombies.push(new ZombieEntity(canvas.width + 20, "boss"));
+            playDragonFireSound(true);
             spawnFloatingText(canvas.width / 2, 130, `BOSS ZOMBIE ĐỢT ${zombieWave} XUẤT HIỆN!`, "#ff4d6d", 18);
             triggerScreenShake(9, 12);
             lastBossWave = zombieWave;
@@ -1244,6 +1353,7 @@
                 ) {
                     this.hitIds.add(target);
                     target.hp = Math.max(0, target.hp - this.damage);
+                    playHitSound(this.isSpecial || this.type === "thrown_spear");
                     const knockX = this.isSpecial ? 14 : (this.type === "dragon_fire" ? 9 : (this.type === "thrown_spear" ? 11 : (this.isMonster ? 8.5 : (this.scale > 1.2 ? 7 : 5))));
                     const knockY = this.isSpecial ? -6.5 : (this.type === "dragon_fire" ? -4.5 : (this.type === "thrown_spear" ? -5.5 : (this.isMonster ? -4.5 : (this.scale > 1.2 ? -3.5 : -2))));
                     target.vx = this.direction * knockX;
@@ -1655,6 +1765,7 @@
 
             if (this.isGrounded && dy < -45 && absDx < 220 && Math.random() < 0.05) {
                 this.vy = -this.jumpPower;
+                playJumpSound();
             }
 
             if (!this.isRanged && absDx <= this.meleeReach + 12) {
@@ -1696,6 +1807,7 @@
                             hitbox.y + hitbox.height > opponent.y
                         ) {
                             opponent.hp = Math.max(0, opponent.hp - this.meleeDamage);
+                            playHitSound(this.isThreeHeadDragon || this.isMonster || this.scale > 1.2);
                             const knockX = this.isThreeHeadDragon ? 13 : (this.isMonster ? 13 : 8);
                             const knockY = this.isThreeHeadDragon ? -6.5 : (this.isMonster ? -7 : -4);
                             opponent.vx = this.facing * knockX;
@@ -2407,6 +2519,10 @@
     window.addEventListener("keydown", (e) => {
         ensureAudioContext();
         if (!keys[e.code]) {
+            if (e.code === "KeyN") {
+                toggleSoundMute();
+            }
+
             if (gameState === "select") {
                 if (e.code === "KeyM" || e.code === "Tab") {
                     e.preventDefault();
@@ -2485,6 +2601,7 @@
         }
         if (keys["KeyW"] && player1.isGrounded) {
             player1.vy = -player1.jumpPower;
+            playJumpSound();
         }
 
         if (gameState === "fight" && !player2.isBot) {
@@ -2498,6 +2615,7 @@
             }
             if (keys["ArrowUp"] && player2.isGrounded) {
                 player2.vy = -player2.jumpPower;
+                playJumpSound();
             }
         }
     }
@@ -2682,7 +2800,7 @@
         ctx.textAlign = "center";
         ctx.fillStyle = "#f8fafc";
         ctx.font = "12.5px Arial";
-        ctx.fillText(`[M] Đổi chế độ • [B] Đổi sàn • Ném giáo [Z]/[Shift] • Hóa Quái [Q]/[L]`, canvas.width / 2, 405);
+        ctx.fillText(`[M] Đổi chế độ • [B] Đổi sàn • [N] Âm thanh (${soundMuted ? "Tắt" : "Bật"}) • Ném giáo [Z]/[Shift] • Hóa Quái [Q]/[L]`, canvas.width / 2, 405);
     }
 
     function drawFightUI() {
@@ -2800,6 +2918,7 @@
 
         if (gameState === "select") {
             drawSelectScreen();
+            updateAndDrawEffects();
         } else if (gameState === "zombie") {
             drawArenaBackground();
             spawnArenaAmbient();
@@ -2809,6 +2928,7 @@
                 zombieWave++;
                 waveKills = 0;
                 zombieSpawnTimer = 25;
+                playWaveClearSound();
                 spawnFloatingText(canvas.width / 2, 115, `ĐỢT ${zombieWave} BẮT ĐẦU!`, "#2ec4b6", 17);
             }
 
@@ -2898,9 +3018,14 @@
                 ctx.fillText(`Tiêu diệt: ${zombieKills} Zombie  •  Đợt ${zombieWave}  •  Cấp ${p1Level}`, canvas.width / 2, canvas.height / 2 + 2);
             } else {
                 const p2Label = player2.isThreeHeadDragon ? "BOT RỒNG 3 ĐẦU" : "P2";
-                const winnerText = player1.hp <= 0
-                    ? `${player2.name.toUpperCase()} (${p2Label}) CHIẾN THẮNG!`
-                    : `${player1.name.toUpperCase()} (P1) CHIẾN THẮNG!`;
+                let winnerText;
+                if (player1.hp <= 0 && player2.hp <= 0) {
+                    winnerText = "HÒA NHAU!";
+                } else if (player1.hp <= 0) {
+                    winnerText = `${player2.name.toUpperCase()} (${p2Label}) CHIẾN THẮNG!`;
+                } else {
+                    winnerText = `${player1.name.toUpperCase()} (P1) CHIẾN THẮNG!`;
+                }
                 ctx.font = "bold 34px Arial";
                 ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 18);
             }
@@ -2909,6 +3034,7 @@
             ctx.fillStyle = "#ffd166";
             ctx.fillText("Bấm [R] để chơi lại  •  Bấm [C] để chọn lại chế độ / nhân vật", canvas.width / 2, canvas.height / 2 + 38);
         }
+
         ctx.restore();
         requestAnimationFrame(gameLoop);
     }
