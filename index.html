@@ -89,7 +89,8 @@
             audioCtx = new AudioContextClass();
         }
         if (audioCtx.state === "suspended") {
-            audioCtx.resume().catch(() => {});
+            audioCtx.resume().catch(() => {
+            });
         }
         return audioCtx;
     }
@@ -106,7 +107,6 @@
     }
 
     function playSlashSound() {
-        console.log('đầu hàng chơi nhạc')
         const ctxInstance = ensureAudioContext();
         if (!ctxInstance) return;
         const now = ctxInstance.currentTime;
@@ -139,7 +139,6 @@
         if (!ctxInstance) return;
         const now = ctxInstance.currentTime;
 
-        // Xung nổ ngắn
         const duration = isArrow ? 0.09 : 0.11;
         const noise = ctxInstance.createBufferSource();
         noise.buffer = createNoiseBuffer(ctxInstance, duration);
@@ -159,7 +158,6 @@
         noise.start(now);
         noise.stop(now + duration);
 
-        // Sóng trầm tạo lực
         const osc = ctxInstance.createOscillator();
         const oscGain = ctxInstance.createGain();
         osc.type = isArrow ? "triangle" : "sawtooth";
@@ -279,15 +277,20 @@
             osc.stop(start + 0.19);
         });
     }
+
     // =====================================================================
 
-    // Hiệu ứng rung màn hình
     let screenShakeTime = 0;
     let screenShakeIntensity = 0;
 
     function triggerScreenShake(intensity = 8, duration = 12) {
         screenShakeIntensity = Math.max(screenShakeIntensity, intensity);
         screenShakeTime = Math.max(screenShakeTime, duration);
+    }
+
+    function resetScreenShake() {
+        screenShakeTime = 0;
+        screenShakeIntensity = 0;
     }
 
     const STARS = Array.from({length: 42}, (_, i) => ({
@@ -611,7 +614,6 @@
 
     const TITAN_INDEX = ROSTER.findIndex(c => c.id === "titan_brute");
 
-    // "bot" | "2p" | "zombie"
     let matchMode = "bot";
     let gameState = "select";
 
@@ -627,22 +629,36 @@
     const floatingTexts = [];
     const afterimages = [];
 
-    // Quản lý Zombie
     const zombies = [];
     let zombieSpawnTimer = 0;
     let zombieWave = 1;
     let zombieKills = 0;
+    let waveKills = 0;
+    let lastBossWave = 0;
     let p1Level = 1;
     let p1Xp = 0;
     let p1XpNeed = 100;
-    let bossSpawnedThisWave = false;
+
+    function getWaveTargetKills(wave) {
+        return 8 + wave * 2;
+    }
 
     function awardZombieKill(target, playerRef) {
+        if (target.countedKill) return;
+        target.countedKill = true;
+
         zombieKills++;
+        waveKills++;
         p1Xp += target.xpValue;
+
         if (Math.random() < 0.35) {
-            itemDrops.push(new ItemDrop(target.x + target.width / 2, GROUND_Y - 10, Math.random() < 0.65 ? "heal" : "tnt"));
+            itemDrops.push(new ItemDrop(
+                target.x + target.width / 2,
+                GROUND_Y - 10,
+                Math.random() < 0.65 ? "heal" : "tnt"
+            ));
         }
+
         if (p1Xp >= p1XpNeed) {
             p1Level++;
             p1Xp -= p1XpNeed;
@@ -778,7 +794,7 @@
 
     class ItemDrop {
         constructor(x, y, kind) {
-            this.x = x;
+            this.x = Math.max(24, Math.min(canvas.width - 24, x));
             this.y = y;
             this.kind = kind;
             this.size = 18;
@@ -796,8 +812,8 @@
             }
 
             if (
-                Math.abs((this.x) - (player.x + player.width / 2)) < 28 &&
-                Math.abs((this.y) - (player.y + player.height / 2)) < 40
+                Math.abs(this.x - (player.x + player.width / 2)) < 28 &&
+                Math.abs(this.y - (player.y + player.height / 2)) < 44
             ) {
                 if (this.kind === "heal") {
                     player.hp = Math.min(player.maxHp, player.hp + 35);
@@ -805,14 +821,16 @@
                     spawnFloatingText(this.x, this.y - 16, "+35 HP", "#ff758f", 14);
                 } else if (this.kind === "tnt") {
                     playTntExplosionSound();
-                    for (let z of zombies) {
+                    for (let i = zombies.length - 1; i >= 0; i--) {
+                        const z = zombies[i];
                         if (Math.hypot(z.x - player.x, z.y - player.y) < 220) {
                             z.hp -= 65;
-                            z.vx = (z.x > player.x ? 1 : -1) * 12;
+                            z.vx = (z.x >= player.x ? 1 : -1) * 12;
                             z.vy = -6;
                             z.hitFlash = 8;
                             if (z.hp <= 0) {
                                 awardZombieKill(z, player);
+                                zombies.splice(i, 1);
                             }
                         }
                     }
@@ -865,6 +883,7 @@
             this.type = type;
             this.facing = x < canvas.width / 2 ? 1 : -1;
             this.x = x;
+            this.countedKill = false;
 
             if (type === "boss") {
                 this.scale = 1.85;
@@ -922,11 +941,11 @@
 
             const dx = target.x - this.x;
             this.facing = dx >= 0 ? 1 : -1;
-            this.vx = this.facing * this.moveSpeed;
+            this.vx += this.facing * this.moveSpeed * 0.35;
 
             this.x += this.vx;
             this.y += this.vy;
-            this.vx *= 0.82;
+            this.vx *= 0.78;
 
             if (Math.abs(this.vx) > 0.3) {
                 this.walkCycle += 0.22;
@@ -983,14 +1002,15 @@
     }
 
     function spawnZombieWaveLogic() {
-        if (zombieWave % 5 === 0 && !bossSpawnedThisWave) {
+        if (zombieWave % 5 === 0 && lastBossWave !== zombieWave) {
             zombies.push(new ZombieEntity(canvas.width + 20, "boss"));
-            spawnFloatingText(canvas.width / 2, 130, "BOSS ZOMBIE XUẤT HIỆN!", "#ff4d6d", 18);
+            spawnFloatingText(canvas.width / 2, 130, `BOSS ZOMBIE ĐỢT ${zombieWave} XUẤT HIỆN!`, "#ff4d6d", 18);
             triggerScreenShake(9, 12);
-            bossSpawnedThisWave = true;
+            lastBossWave = zombieWave;
         }
 
-        if (zombieSpawnTimer <= 0) {
+        const maxActiveZombies = Math.min(12, 4 + zombieWave);
+        if (zombieSpawnTimer <= 0 && zombies.length < maxActiveZombies) {
             zombieSpawnTimer = Math.max(45, 140 - zombieWave * 10);
             const spawnX = Math.random() < 0.5 ? -40 : canvas.width + 10;
             const rand = Math.random();
@@ -1179,6 +1199,7 @@
             this.isMonster = isMonster;
             this.vy = vy;
             this.isSpecial = isSpecial;
+            this.hitIds = new Set();
 
             if (type === "thrown_spear") {
                 this.speed = scale > 1.2 ? 10.5 : 12.5;
@@ -1212,14 +1233,16 @@
             }
 
             const targets = Array.isArray(targetList) ? targetList : [targetList];
-            for (let target of targets) {
-                if (!target) continue;
+            for (let idx = targets.length - 1; idx >= 0; idx--) {
+                const target = targets[idx];
+                if (!target || this.hitIds.has(target)) continue;
                 if (
                     this.x < target.x + target.width &&
                     this.x + this.width > target.x &&
                     this.y < target.y + target.height &&
                     this.y + this.height > target.y
                 ) {
+                    this.hitIds.add(target);
                     target.hp = Math.max(0, target.hp - this.damage);
                     const knockX = this.isSpecial ? 14 : (this.type === "dragon_fire" ? 9 : (this.type === "thrown_spear" ? 11 : (this.isMonster ? 8.5 : (this.scale > 1.2 ? 7 : 5))));
                     const knockY = this.isSpecial ? -6.5 : (this.type === "dragon_fire" ? -4.5 : (this.type === "thrown_spear" ? -5.5 : (this.isMonster ? -4.5 : (this.scale > 1.2 ? -3.5 : -2))));
@@ -1234,6 +1257,7 @@
 
                     if (target instanceof ZombieEntity && target.hp <= 0) {
                         awardZombieKill(target, this.owner || player1);
+                        targets.splice(idx, 1);
                     }
 
                     if (this.type !== "thrown_spear") {
@@ -1458,9 +1482,7 @@
             this.width = 36 * this.scale;
             this.height = 84 * this.scale;
             this.y = Math.min(GROUND_Y - this.height, oldBottom - this.height);
-            if (this.x + this.width > canvas.width - 10) {
-                this.x = canvas.width - 10 - this.width;
-            }
+            this.x = Math.max(10, Math.min(canvas.width - 10 - this.width, this.x));
         }
 
         toggleMonsterForm() {
@@ -1596,7 +1618,7 @@
         }
 
         updateBotAI(opponent) {
-            if (!opponent) return;
+            if (!opponent) return 7;
             const dx = opponent.x - this.x;
             const absDx = Math.abs(dx);
             const dy = opponent.y - this.y;
@@ -1628,7 +1650,7 @@
             }
 
             if (this.aiDesiredDir !== 0 && absDx > 95) {
-                this.vx = this.aiDesiredDir * this.moveSpeed;
+                this.vx += this.aiDesiredDir * this.moveSpeed * 0.35;
             }
 
             if (this.isGrounded && dy < -45 && absDx < 220 && Math.random() < 0.05) {
@@ -1664,7 +1686,8 @@
                     let hitbox = this.getWeaponHitbox();
                     const targets = Array.isArray(targetList) ? targetList : [targetList];
 
-                    for (let opponent of targets) {
+                    for (let idx = targets.length - 1; idx >= 0; idx--) {
+                        const opponent = targets[idx];
                         if (!opponent) continue;
                         if (
                             hitbox.x < opponent.x + opponent.width &&
@@ -1685,6 +1708,7 @@
 
                             if (opponent instanceof ZombieEntity && opponent.hp <= 0) {
                                 awardZombieKill(opponent, this);
+                                targets.splice(idx, 1);
                             }
                         }
                     }
@@ -1694,9 +1718,9 @@
 
             this.x += this.vx;
             this.y += this.vy;
-            this.vx *= 0.82;
+            this.vx *= 0.78;
 
-            if (Math.abs(this.vx) > 0.3 && this.isGrounded) {
+            if (Math.abs(this.vx) > 0.35 && this.isGrounded) {
                 this.walkCycle += 0.22;
             } else {
                 this.walkCycle = 0;
@@ -2305,6 +2329,17 @@
     let player2 = null;
     const keys = {};
 
+    function clearTransientEntities() {
+        projectiles.length = 0;
+        particles.length = 0;
+        slashes.length = 0;
+        zombies.length = 0;
+        itemDrops.length = 0;
+        floatingTexts.length = 0;
+        afterimages.length = 0;
+        resetScreenShake();
+    }
+
     function toggleMatchMode() {
         if (matchMode === "bot") matchMode = "2p";
         else if (matchMode === "2p") matchMode = "zombie";
@@ -2320,15 +2355,7 @@
 
     function startMatch() {
         ensureAudioContext();
-        projectiles.length = 0;
-        particles.length = 0;
-        slashes.length = 0;
-        zombies.length = 0;
-        itemDrops.length = 0;
-        floatingTexts.length = 0;
-        afterimages.length = 0;
-        screenShakeTime = 0;
-        screenShakeIntensity = 0;
+        clearTransientEntities();
 
         const p1Profile = ROSTER[p1SelectIndex];
         const p1Height = 80 * (p1Profile.scale || 1);
@@ -2344,11 +2371,12 @@
         if (matchMode === "zombie") {
             zombieWave = 1;
             zombieKills = 0;
+            waveKills = 0;
+            lastBossWave = 0;
             zombieSpawnTimer = 30;
             p1Level = 1;
             p1Xp = 0;
             p1XpNeed = 100;
-            bossSpawnedThisWave = false;
             gameState = "zombie";
             return;
         }
@@ -2372,15 +2400,7 @@
     function backToSelect() {
         p1Ready = false;
         p2Ready = false;
-        projectiles.length = 0;
-        particles.length = 0;
-        slashes.length = 0;
-        zombies.length = 0;
-        itemDrops.length = 0;
-        floatingTexts.length = 0;
-        afterimages.length = 0;
-        screenShakeTime = 0;
-        screenShakeIntensity = 0;
+        clearTransientEntities();
         gameState = "select";
     }
 
@@ -2421,7 +2441,7 @@
                         } else if (e.code === "Enter") {
                             p2Ready = true;
                         }
-                    } else if (e.code === "KeyP") {
+                    } else if (e.code === "KeyP" || e.code === "Backspace" || e.code === "ShiftRight") {
                         p2Ready = false;
                     }
                 }
@@ -2456,11 +2476,11 @@
 
     function handleFightInput() {
         if (keys["KeyA"]) {
-            player1.vx = -player1.moveSpeed;
+            player1.vx += -player1.moveSpeed * 0.35;
             player1.facing = -1;
         }
         if (keys["KeyD"]) {
-            player1.vx = player1.moveSpeed;
+            player1.vx += player1.moveSpeed * 0.35;
             player1.facing = 1;
         }
         if (keys["KeyW"] && player1.isGrounded) {
@@ -2469,11 +2489,11 @@
 
         if (gameState === "fight" && !player2.isBot) {
             if (keys["ArrowLeft"]) {
-                player2.vx = -player2.moveSpeed;
+                player2.vx += -player2.moveSpeed * 0.35;
                 player2.facing = -1;
             }
             if (keys["ArrowRight"]) {
-                player2.vx = player2.moveSpeed;
+                player2.vx += player2.moveSpeed * 0.35;
                 player2.facing = 1;
             }
             if (keys["ArrowUp"] && player2.isGrounded) {
@@ -2483,6 +2503,7 @@
     }
 
     function drawZombieUI() {
+        const waveNeed = getWaveTargetKills(zombieWave);
         ctx.save();
         ctx.fillStyle = "rgba(15, 23, 42, 0.86)";
         ctx.beginPath();
@@ -2512,10 +2533,10 @@
         ctx.textAlign = "center";
         ctx.fillStyle = "#2ec4b6";
         ctx.font = "bold 18px Arial";
-        ctx.fillText(`SINH TỒN ZOMBIE - ĐỢT ${zombieWave}`, canvas.width / 2, 38);
+        ctx.fillText(`SINH TỒN ZOMBIE - ĐỢT ${zombieWave} (${waveKills}/${waveNeed})`, canvas.width / 2, 38);
         ctx.fillStyle = "#cbd5e1";
         ctx.font = "12px Arial";
-        ctx.fillText(`Đã diệt: ${zombieKills} Zombie • Đam cận chiến: ${player1.meleeDamage} • Sàn: ${ARENAS[currentArenaIndex].name}`, canvas.width / 2, 58);
+        ctx.fillText(`Tổng diệt: ${zombieKills} • Đam cận chiến: ${player1.meleeDamage} • Sàn: ${ARENAS[currentArenaIndex].name}`, canvas.width / 2, 58);
 
         ctx.textAlign = "right";
         ctx.fillStyle = "#ff595e";
@@ -2565,7 +2586,6 @@
         ctx.fillText(`${modeText}   •   ${arenaLabel}`, canvas.width / 2, 53);
 
         const cols = 5;
-        const rows = Math.ceil(ROSTER.length / cols);
         const cardWidth = 160;
         const cardHeight = 128;
         const gapX = 12;
@@ -2650,7 +2670,7 @@
         if (matchMode === "2p") {
             const p2Char = ROSTER[p2SelectIndex];
             ctx.fillStyle = "#ff6b6b";
-            ctx.fillText(`P2: ${p2Char.name} ${p2Ready ? "(ĐÃ CHỐT - P đổi)" : "(Trái/Phải chọn, Enter chốt)"}`, canvas.width - 36, 366);
+            ctx.fillText(`P2: ${p2Char.name} ${p2Ready ? "(ĐÃ CHỐT - Backspace/P đổi)" : "(Trái/Phải chọn, Enter chốt)"}`, canvas.width - 36, 366);
         } else if (matchMode === "zombie") {
             ctx.fillStyle = "#2ec4b6";
             ctx.fillText("Zombie: Bấm Space chốt để đại chiến thây ma & Boss", canvas.width - 36, 366);
@@ -2760,7 +2780,7 @@
         for (let i = floatingTexts.length - 1; i >= 0; i--) {
             floatingTexts[i].update();
             floatingTexts[i].draw();
-            if (floatingTexts[i].life <= 0) floatingTexts[i].splice(i, 1);
+            if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
         }
     }
 
@@ -2785,9 +2805,11 @@
             spawnArenaAmbient();
             spawnZombieWaveLogic();
 
-            if (zombieKills > 0 && zombieKills % 10 === 0 && zombies.length === 0) {
+            if (waveKills >= getWaveTargetKills(zombieWave)) {
                 zombieWave++;
-                bossSpawnedThisWave = false;
+                waveKills = 0;
+                zombieSpawnTimer = 25;
+                spawnFloatingText(canvas.width / 2, 115, `ĐỢT ${zombieWave} BẮT ĐẦU!`, "#2ec4b6", 17);
             }
 
             handleFightInput();
@@ -2800,10 +2822,13 @@
             }
 
             for (let i = zombies.length - 1; i >= 0; i--) {
-                zombies[i].update(player1);
-                zombies[i].draw();
-                if (zombies[i].hp <= 0) {
+                const z = zombies[i];
+                z.update(player1);
+                if (z.hp <= 0) {
+                    awardZombieKill(z, player1);
                     zombies.splice(i, 1);
+                } else {
+                    z.draw();
                 }
             }
 
@@ -2864,22 +2889,25 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.fillStyle = "#fff";
-            ctx.font = "bold 34px Arial";
             ctx.textAlign = "center";
-            let winnerText = "";
             if (matchMode === "zombie") {
-                winnerText = `BẠN ĐÃ BỊ TẤN CÔNG! (Tiêu diệt: ${zombieKills} Zombie - Đợt ${zombieWave})`;
+                ctx.font = "bold 30px Arial";
+                ctx.fillText("BẠN ĐÃ BỊ TẤN CÔNG!", canvas.width / 2, canvas.height / 2 - 34);
+                ctx.font = "bold 18px Arial";
+                ctx.fillStyle = "#cbd5e1";
+                ctx.fillText(`Tiêu diệt: ${zombieKills} Zombie  •  Đợt ${zombieWave}  •  Cấp ${p1Level}`, canvas.width / 2, canvas.height / 2 + 2);
             } else {
                 const p2Label = player2.isThreeHeadDragon ? "BOT RỒNG 3 ĐẦU" : "P2";
-                winnerText = player1.hp <= 0
+                const winnerText = player1.hp <= 0
                     ? `${player2.name.toUpperCase()} (${p2Label}) CHIẾN THẮNG!`
                     : `${player1.name.toUpperCase()} (P1) CHIẾN THẮNG!`;
+                ctx.font = "bold 34px Arial";
+                ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 18);
             }
-            ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 18);
 
             ctx.font = "19px Arial";
             ctx.fillStyle = "#ffd166";
-            ctx.fillText("Bấm [R] để chơi lại  •  Bấm [C] để chọn lại chế độ / nhân vật", canvas.width / 2, canvas.height / 2 + 28);
+            ctx.fillText("Bấm [R] để chơi lại  •  Bấm [C] để chọn lại chế độ / nhân vật", canvas.width / 2, canvas.height / 2 + 38);
         }
         ctx.restore();
         requestAnimationFrame(gameLoop);
