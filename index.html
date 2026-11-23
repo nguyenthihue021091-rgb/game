@@ -116,9 +116,9 @@
         );
     }
 
-    // --- BGM SYNTHESIZER ---
-    const BGM_BASS_LINE = [110, 110, 130, 110, 146.83, 130, 110, 98];
-    const BGM_MELODY_LINE = [220, 0, 261.63, 293.66, 0, 329.63, 293.66, 261.63, 220, 246.94, 261.63, 0, 196, 220, 0, 0];
+    // --- BGM SYNTHESIZER (BẢN NHẠC MỚI - ARCADE ACTION) ---
+    const BGM_BASS_LINE = [130.81, 130.81, 155.56, 174.61, 196.00, 174.61, 155.56, 146.83];
+    const BGM_MELODY_LINE = [523.25, 0, 659.25, 587.33, 783.99, 0, 659.25, 523.25, 587.33, 659.25, 783.99, 880.00, 783.99, 659.25, 587.33, 0];
 
     function playBGMTick() {
         if (soundMuted) return;
@@ -127,38 +127,38 @@
 
         const now = ctxInstance.currentTime;
 
-        // Bass Synth
         const bassFreq = BGM_BASS_LINE[bgmStep % BGM_BASS_LINE.length];
         if (bassFreq > 0) {
             const osc = ctxInstance.createOscillator();
             const gain = ctxInstance.createGain();
-            osc.type = "sawtooth";
+            osc.type = "triangle";
             osc.frequency.setValueAtTime(bassFreq, now);
 
-            gain.gain.setValueAtTime(0.04, now);
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.06, now + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+
+            osc.connect(gain);
+            gain.connect(ctxInstance.destination);
+            osc.start(now);
+            osc.stop(now + 0.15);
+        }
+
+        const melFreq = BGM_MELODY_LINE[bgmStep % BGM_MELODY_LINE.length];
+        if (melFreq > 0) {
+            const osc = ctxInstance.createOscillator();
+            const gain = ctxInstance.createGain();
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(melFreq, now);
+
+            gain.gain.setValueAtTime(0.001, now);
+            gain.gain.linearRampToValueAtTime(0.035, now + 0.008);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
             osc.connect(gain);
             gain.connect(ctxInstance.destination);
             osc.start(now);
             osc.stop(now + 0.13);
-        }
-
-        // Melody Synth
-        const melFreq = BGM_MELODY_LINE[bgmStep % BGM_MELODY_LINE.length];
-        if (melFreq > 0) {
-            const osc = ctxInstance.createOscillator();
-            const gain = ctxInstance.createGain();
-            osc.type = "square";
-            osc.frequency.setValueAtTime(melFreq, now);
-
-            gain.gain.setValueAtTime(0.025, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-
-            osc.connect(gain);
-            gain.connect(ctxInstance.destination);
-            osc.start(now);
-            osc.stop(now + 0.11);
         }
 
         bgmStep++;
