@@ -789,6 +789,120 @@
             rangedDamage: 14,
             rangedCooldown: 26,
             desc: "Áo giáp thép • Thương & Súng"
+        },
+        {
+            id: "shadow_ninja",
+            name: "Hắc Ảnh Nhẫn Giả",
+            color: "#9b5de5",
+            accent: "#f15bb5",
+            scale: 0.94,
+            maxHp: 88,
+            moveSpeed: 6.6,
+            jumpPower: 14.5,
+            meleeWeapon: "sword",
+            meleeDamage: 16,
+            meleeReach: 64,
+            meleeCooldown: 21,
+            rangedWeapon: "bow",
+            projectileType: "arrow",
+            rangedDamage: 14,
+            rangedCooldown: 17,
+            desc: "Tốc độ đỉnh • Kiếm & Cung nhanh"
+        },
+        {
+            id: "flame_gunner",
+            name: "Xích Liệt Pháo Thủ",
+            color: "#ff5400",
+            accent: "#ffbd00",
+            scale: 1.0,
+            maxHp: 96,
+            moveSpeed: 5.3,
+            jumpPower: 13.2,
+            meleeWeapon: "sword",
+            meleeDamage: 14,
+            meleeReach: 62,
+            meleeCooldown: 25,
+            rangedWeapon: "gun",
+            projectileType: "bullet",
+            rangedDamage: 16,
+            rangedCooldown: 22,
+            desc: "Hỏa lực súng mạnh • Kiếm & Súng"
+        },
+        {
+            id: "jade_lancer",
+            name: "Ngọc Long Giáo Thánh",
+            color: "#06d6a0",
+            accent: "#b8f2e6",
+            scale: 1.06,
+            maxHp: 118,
+            moveSpeed: 4.8,
+            jumpPower: 12.8,
+            meleeWeapon: "spear",
+            meleeDamage: 20,
+            meleeReach: 96,
+            meleeCooldown: 28,
+            rangedWeapon: "bow",
+            projectileType: "arrow",
+            rangedDamage: 14,
+            rangedCooldown: 23,
+            desc: "Giáo tầm xa • Ném giáo & Cung"
+        },
+        {
+            id: "storm_berserker",
+            name: "Bạo Phong Cuồng Chiến",
+            color: "#ef476f",
+            accent: "#ffd166",
+            scale: 1.12,
+            maxHp: 132,
+            moveSpeed: 5.5,
+            jumpPower: 13.6,
+            meleeWeapon: "sword",
+            meleeDamage: 23,
+            meleeReach: 72,
+            meleeCooldown: 24,
+            rangedWeapon: "gun",
+            projectileType: "bullet",
+            rangedDamage: 11,
+            rangedCooldown: 21,
+            desc: "Càn lướt mạnh • Máu cao & Chém rát"
+        },
+        {
+            id: "frost_archer",
+            name: "Tuyết Hồ Cung Thủ",
+            color: "#48cae4",
+            accent: "#caf0f8",
+            scale: 0.96,
+            maxHp: 94,
+            moveSpeed: 5.9,
+            jumpPower: 14.0,
+            meleeWeapon: "sword",
+            meleeDamage: 12,
+            meleeReach: 60,
+            meleeCooldown: 23,
+            rangedWeapon: "bow",
+            projectileType: "arrow",
+            rangedDamage: 15,
+            rangedCooldown: 16,
+            desc: "Bắn cung liên tục • Cơ động cao"
+        },
+        {
+            id: "void_overlord",
+            name: "Ma Tôn Hủy Diệt",
+            color: "#7209b7",
+            accent: "#4cc9f0",
+            scale: 1.28,
+            maxHp: 165,
+            moveSpeed: 3.4,
+            jumpPower: 11.5,
+            meleeWeapon: "spear",
+            meleeDamage: 25,
+            meleeReach: 100,
+            meleeCooldown: 34,
+            rangedWeapon: "gun",
+            projectileType: "bullet",
+            rangedDamage: 18,
+            rangedCooldown: 24,
+            desc: "Cự phách • Giáo dài, Ném giáo & Súng"
         }
     ];
 
@@ -1794,7 +1908,7 @@
                     damage: this.rangedDamage,
                     color: this.color,
                     scale: this.scale,
-                    fast: this.profile.id === "green_assassin" || this.profile.id === "shadow_reaper",
+                    fast: this.profile.id === "green_assassin" || this.profile.id === "shadow_reaper" || this.profile.id === "shadow_ninja" || this.profile.id === "frost_archer",
                     isMonster: this.isMonster
                 }));
             } else {
@@ -2785,11 +2899,11 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         ctx.fillStyle = "#ffd166";
-        ctx.font = "bold 23px Arial";
+        ctx.font = "bold 22px Arial";
         ctx.textAlign = "center";
-        ctx.fillText(`CHỌN NHÂN VẬT (${ROSTER.length} ĐẤU SĨ), CHẾ ĐỘ & SÀN ĐẤU`, canvas.width / 2, 30);
+        ctx.fillText(`CHỌN NHÂN VẬT (${ROSTER.length} ĐẤU SĨ), CHẾ ĐỘ & SÀN ĐẤU`, canvas.width / 2, 26);
 
-        ctx.font = "bold 13px Arial";
+        ctx.font = "bold 12.5px Arial";
         let modeText = "CHẾ ĐỘ: 1P vs RỒNG 3 ĐẦU [M]";
         let modeColor = "#ff4d6d";
         if (matchMode === "2p") {
@@ -2802,16 +2916,17 @@
 
         ctx.fillStyle = modeColor;
         const arenaLabel = `SÀN ĐẤU: ${ARENAS[currentArenaIndex].name} (${currentArenaIndex + 1}/${ARENAS.length}) [B]`;
-        ctx.fillText(`${modeText}   •   ${arenaLabel}`, canvas.width / 2, 53);
+        ctx.fillText(`${modeText}   •   ${arenaLabel}`, canvas.width / 2, 47);
 
-        const cols = 5;
-        const cardWidth = 160;
-        const cardHeight = 128;
-        const gapX = 12;
-        const gapY = 18;
+        const cols = 4;
+        const rows = Math.ceil(ROSTER.length / cols);
+        const cardWidth = 198;
+        const cardHeight = 62;
+        const gapX = 14;
+        const gapY = 8;
         const totalWidth = cols * cardWidth + (cols - 1) * gapX;
         const startX = (canvas.width - totalWidth) / 2;
-        const startY = 74;
+        const startY = 58;
 
         ROSTER.forEach((char, idx) => {
             const row = Math.floor(idx / cols);
@@ -2827,7 +2942,7 @@
             cardGrad.addColorStop(1, "rgba(20, 28, 52, 0.96)");
             ctx.fillStyle = cardGrad;
             ctx.beginPath();
-            ctx.roundRect(x, y, cardWidth, cardHeight, 9);
+            ctx.roundRect(x, y, cardWidth, cardHeight, 8);
             ctx.fill();
 
             let borderColor = "#4a5d8a";
@@ -2836,18 +2951,18 @@
             else if (isP2) borderColor = "#ff6b6b";
 
             ctx.strokeStyle = borderColor;
-            ctx.lineWidth = (isP1 || isP2) ? 3 : 1.4;
+            ctx.lineWidth = (isP1 || isP2) ? 2.6 : 1.3;
             if (isP1 || isP2) {
                 ctx.shadowColor = borderColor;
-                ctx.shadowBlur = 12;
+                ctx.shadowBlur = 10;
             }
             ctx.stroke();
             ctx.restore();
 
-            const previewScale = Math.min(char.scale || 1, 0.85) * 0.72;
+            const previewScale = Math.min(char.scale || 1, 0.85) * 0.44;
             drawStickmanFigure({
-                centerX: x + cardWidth / 2,
-                topY: y + 10,
+                centerX: x + 28,
+                topY: y + 11,
                 color: char.color,
                 accent: char.accent,
                 facing: 1,
@@ -2856,52 +2971,54 @@
             });
 
             ctx.fillStyle = "#fff";
-            ctx.font = "bold 11.5px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(char.name, x + cardWidth / 2, y + 83);
+            ctx.font = "bold 11px Arial";
+            ctx.textAlign = "left";
+            ctx.fillText(char.name, x + 54, y + 18);
 
             ctx.fillStyle = "#cbd5e1";
-            ctx.font = "9.5px Arial";
-            ctx.fillText(`HP:${char.maxHp} • Đam:${char.meleeDamage} • Tốc:${char.moveSpeed}`, x + cardWidth / 2, y + 99);
-            ctx.fillText(char.desc, x + cardWidth / 2, y + 114);
+            ctx.font = "9px Arial";
+            ctx.fillText(`HP:${char.maxHp} • Đam:${char.meleeDamage} • Tốc:${char.moveSpeed}`, x + 54, y + 33);
+            ctx.fillStyle = "#94a3b8";
+            ctx.fillText(char.desc, x + 54, y + 48);
 
-            ctx.font = "bold 10px Arial";
+            ctx.font = "bold 9.5px Arial";
             if (isP1) {
                 ctx.fillStyle = "#00d2ff";
-                ctx.textAlign = "left";
-                ctx.fillText(p1Ready ? "P1 [READY]" : "P1", x + 5, y - 5);
+                ctx.textAlign = "right";
+                ctx.fillText(p1Ready ? "P1 [READY]" : "P1", x + cardWidth - 7, y + 17);
             }
             if (isP2) {
                 ctx.fillStyle = "#ff6b6b";
                 ctx.textAlign = "right";
-                ctx.fillText(p2Ready ? "[READY] P2" : "P2", x + cardWidth - 5, y - 5);
+                ctx.fillText(p2Ready ? "[READY] P2" : "P2", x + cardWidth - 7, y + (isP1 ? 30 : 17));
             }
         });
 
+        const footerTopY = startY + rows * (cardHeight + gapY) + 8;
         const p1Char = ROSTER[p1SelectIndex];
 
         ctx.textAlign = "left";
         ctx.fillStyle = "#00d2ff";
-        ctx.font = "bold 13px Arial";
-        ctx.fillText(`P1: ${p1Char.name} ${p1Ready ? "(ĐÃ CHỐT - E đổi)" : "(A/D chọn, Space chốt)"}`, 36, 366);
+        ctx.font = "bold 12.5px Arial";
+        ctx.fillText(`P1: ${p1Char.name} ${p1Ready ? "(ĐÃ CHỐT - E đổi)" : "(A/D chọn, Space chốt)"}`, 36, footerTopY);
 
         ctx.textAlign = "right";
         if (matchMode === "2p") {
             const p2Char = ROSTER[p2SelectIndex];
             ctx.fillStyle = "#ff6b6b";
-            ctx.fillText(`P2: ${p2Char.name} ${p2Ready ? "(ĐÃ CHỐT - Backspace/P đổi)" : "(Trái/Phải chọn, Enter chốt)"}`, canvas.width - 36, 366);
+            ctx.fillText(`P2: ${p2Char.name} ${p2Ready ? "(ĐÃ CHỐT - Backspace/P đổi)" : "(Trái/Phải chọn, Enter chốt)"}`, canvas.width - 36, footerTopY);
         } else if (matchMode === "zombie") {
             ctx.fillStyle = "#2ec4b6";
-            ctx.fillText("Zombie: Bấm Space chốt để đại chiến thây ma & Boss", canvas.width - 36, 366);
+            ctx.fillText("Zombie: Bấm Space chốt để đại chiến thây ma & Boss", canvas.width - 36, footerTopY);
         } else {
             ctx.fillStyle = "#ff6b6b";
-            ctx.fillText("BOT: Rồng 3 Đầu Hỏa Ngục (HP: 260 • Khạc Lửa Đặc Biệt)", canvas.width - 36, 366);
+            ctx.fillText("BOT: Rồng 3 Đầu Hỏa Ngục (HP: 260 • Khạc Lửa Đặc Biệt)", canvas.width - 36, footerTopY);
         }
 
         ctx.textAlign = "center";
         ctx.fillStyle = "#f8fafc";
-        ctx.font = "12.5px Arial";
-        ctx.fillText(`[M] Đổi chế độ • [B] Đổi sàn • [N] Âm thanh & Nhạc (${soundMuted ? "Tắt" : "Bật"}) • Ném giáo [Z]/[Shift] • Hóa Quái [Q]/[L]`, canvas.width / 2, 405);
+        ctx.font = "12px Arial";
+        ctx.fillText(`[M] Đổi chế độ • [B] Đổi sàn • [N] Âm thanh & Nhạc (${soundMuted ? "Tắt" : "Bật"}) • Ném giáo [Z]/[Shift] • Hóa Quái [Q]/[L]`, canvas.width / 2, footerTopY + 26);
     }
 
     function drawFightUI() {
