@@ -93,7 +93,8 @@
             audioCtx = new AudioContextClass();
         }
         if (audioCtx.state === "suspended") {
-            audioCtx.resume().catch(() => {});
+            audioCtx.resume().catch(() => {
+            });
         }
         return audioCtx;
     }
@@ -116,7 +117,7 @@
         );
     }
 
-    // --- BGM SYNTHESIZER (BẢN NHẠC MỚI - ARCADE ACTION) ---
+    // --- BGM SYNTHESIZER (ARCADE ACTION) ---
     const BGM_BASS_LINE = [130.81, 130.81, 155.56, 174.61, 196.00, 174.61, 155.56, 146.83];
     const BGM_MELODY_LINE = [523.25, 0, 659.25, 587.33, 783.99, 0, 659.25, 523.25, 587.33, 659.25, 783.99, 880.00, 783.99, 659.25, 587.33, 0];
 
@@ -175,6 +176,30 @@
             clearInterval(bgmInterval);
             bgmInterval = null;
         }
+    }
+
+    function playDrawSound() {
+        const ctxInstance = ensureAudioContext();
+        if (!ctxInstance) return;
+        const now = ctxInstance.currentTime;
+        const notes = [392.00, 349.23];
+
+        notes.forEach((freq, idx) => {
+            const start = now + idx * 0.14;
+            const osc = ctxInstance.createOscillator();
+            const gain = ctxInstance.createGain();
+            osc.type = "triangle";
+            osc.frequency.setValueAtTime(freq, start);
+
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.linearRampToValueAtTime(0.15, start + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.22);
+
+            osc.connect(gain);
+            gain.connect(ctxInstance.destination);
+            osc.start(start);
+            osc.stop(start + 0.23);
+        });
     }
 
     // --- SOUND EFFECTS ---
@@ -455,6 +480,7 @@
 
     let screenShakeTime = 0;
     let screenShakeIntensity = 0;
+    let drawGraceFrames = 0;
 
     function triggerScreenShake(intensity = 8, duration = 12) {
         screenShakeIntensity = Math.max(screenShakeIntensity, intensity);
@@ -464,6 +490,7 @@
     function resetScreenShake() {
         screenShakeTime = 0;
         screenShakeIntensity = 0;
+        drawGraceFrames = 0;
     }
 
     const STARS = Array.from({length: 42}, (_, i) => ({
@@ -3062,8 +3089,25 @@
             drawFightUI();
 
             if (player1.hp <= 0 || player2.hp <= 0) {
-                gameState = "gameover";
-                stopBGM();
+                if (player1.hp <= 0 && player2.hp <= 0) {
+                    playDrawSound();
+                    spawnFloatingText(canvas.width / 2, canvas.height / 2 - 65, "CẢ HAI CÙNG GỤC NGÃ!", "#ffd166", 16);
+                    gameState = "gameover";
+                    drawGraceFrames = 0;
+                    stopBGM();
+                } else {
+                    if (drawGraceFrames === 0) {
+                        drawGraceFrames = 14;
+                    } else {
+                        drawGraceFrames--;
+                    }
+                    if (drawGraceFrames <= 0) {
+                        gameState = "gameover";
+                        stopBGM();
+                    }
+                }
+            } else {
+                drawGraceFrames = 0;
             }
         }
 
@@ -3081,6 +3125,8 @@
                 drawFightUI();
             }
 
+            const isDrawMatch = matchMode !== "zombie" && player1.hp <= 0 && player2.hp <= 0;
+
             ctx.fillStyle = "rgba(10, 14, 28, 0.78)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -3095,20 +3141,33 @@
             } else {
                 const p2Label = player2.isThreeHeadDragon ? "BOT RỒNG 3 ĐẦU" : "P2";
                 let winnerText;
-                if (player1.hp <= 0 && player2.hp <= 0) {
+                if (isDrawMatch) {
                     winnerText = "HÒA NHAU!";
                 } else if (player1.hp <= 0) {
                     winnerText = `${player2.name.toUpperCase()} (${p2Label}) CHIẾN THẮNG!`;
                 } else {
                     winnerText = `${player1.name.toUpperCase()} (P1) CHIẾN THẮNG!`;
                 }
+                ctx.save();
                 ctx.font = "bold 34px Arial";
+                if (isDrawMatch) {
+                    ctx.fillStyle = "#ffd166";
+                    ctx.shadowColor = "#ffd166";
+                    ctx.shadowBlur = 18;
+                }
                 ctx.fillText(winnerText, canvas.width / 2, canvas.height / 2 - 18);
+                if (isDrawMatch) {
+                    ctx.shadowBlur = 0;
+                    ctx.font = "bold 15px Arial";
+                    ctx.fillStyle = "#e2e8f0";
+                    ctx.fillText("Hai đấu sĩ gục ngã cùng lúc • Bất phân thắng bại", canvas.width / 2, canvas.height / 2 + 12);
+                }
+                ctx.restore();
             }
 
             ctx.font = "19px Arial";
             ctx.fillStyle = "#ffd166";
-            ctx.fillText("Bấm [R] để chơi lại  •  Bấm [C] để chọn lại chế độ / nhân vật", canvas.width / 2, canvas.height / 2 + 38);
+            ctx.fillText("Bấm [R] để chơi lại  •  Bấm [C] để chọn lại chế độ / nhân vật", canvas.width / 2, canvas.height / 2 + 48);
         }
 
         ctx.restore();
